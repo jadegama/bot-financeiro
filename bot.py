@@ -5,12 +5,14 @@ import os
 import unicodedata
 from datetime import datetime
 import asyncio
+import logging
 
 from database import salvar_transacao, relatorio_por_pessoa, criar_banco, relatorio_por_mes
 
 # --- Configurações ---
 TOKEN = os.getenv("TOKEN")
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # --- Funções utilitárias ---
 def normalizar_texto(texto):
@@ -78,7 +80,7 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         salvar_transacao(pessoa, valor, local)
         await update.message.reply_text("✅ Gasto salvo com sucesso!")
     except Exception as e:
-        print(e)
+        logging.error(f"Erro ao processar mensagem: {e}")
         await update.message.reply_text("❌ Formato inválido.\nUse: 50 - almoço - João")
 
 # --- Criar banco ---
@@ -93,8 +95,8 @@ application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responde
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
-    loop = asyncio.get_event_loop()
-    loop.create_task(application.process_update(update))  # evita erro 500
+    logging.info(f"Recebido update: {update}")
+    asyncio.run_coroutine_threadsafe(application.process_update(update), asyncio.get_event_loop())
     return "ok", 200
 
 # --- Endpoint teste vida ---
