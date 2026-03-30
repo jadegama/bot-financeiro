@@ -4,6 +4,8 @@ from database import salvar_transacao, relatorio_por_pessoa
 from database import criar_banco
 import unicodedata
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 TOKEN = os.getenv("TOKEN")
 
@@ -36,6 +38,19 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "❌ Formato inválido.\nUse: 50 - almoço - João"
         )
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+
+def run_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
