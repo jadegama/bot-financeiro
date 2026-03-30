@@ -1,16 +1,16 @@
 from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import os
 import unicodedata
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
-
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import requests
 
 from database import salvar_transacao, relatorio_por_pessoa, criar_banco, relatorio_por_mes
 
 TOKEN = os.getenv("TOKEN")
+URL = os.environ.get("RENDER_EXTERNAL_URL")  # Variável do Render com a URL pública
 
+# --- Funções utilitárias ---
 def normalizar_texto(texto):
     texto = texto.lower()
     texto = unicodedata.normalize("NFD", texto)
@@ -33,6 +33,7 @@ meses = {
     "dezembro": "12"
 }
 
+# --- Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Fala! Me manda um gasto que eu salvo 😄")
 
@@ -43,11 +44,7 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "relatorio" in texto:
         teclado = [["Geral", "Mensal"]]
         reply_markup = ReplyKeyboardMarkup(teclado, resize_keyboard=True)
-
-        await update.message.reply_text(
-            "Escolha o tipo de relatório:",
-            reply_markup=reply_markup
-        )
+        await update.message.reply_text("Escolha o tipo de relatório:", reply_markup=reply_markup)
         return
 
     # Relatório geral
@@ -65,18 +62,13 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ["Outubro", "Novembro", "Dezembro"]
         ]
         reply_markup = ReplyKeyboardMarkup(teclado, resize_keyboard=True)
-
-        await update.message.reply_text(
-            "Escolha o mês:",
-            reply_markup=reply_markup
-        )
+        await update.message.reply_text("Escolha o mês:", reply_markup=reply_markup)
         return
 
     # Seleção de mês
     if texto in meses:
         ano_atual = datetime.now().year
         mes_numero = meses[texto]
-
         resposta = relatorio_por_mes(ano_atual, mes_numero)
         await update.message.reply_text(resposta)
         return
@@ -84,42 +76,34 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Salvar gasto
     try:
         partes = texto.split("-")
-
         valor = float(partes[0].strip())
         local = partes[1].strip()
         pessoa = partes[2].strip()
-
         salvar_transacao(pessoa, valor, local)
-
         await update.message.reply_text("✅ Gasto salvo com sucesso!")
-
     except Exception as e:
         print(e)
-        await update.message.reply_text(
-            "❌ Formato inválido.\nUse: 50 - almoço - João"
-        )
+        await update.message.reply_text("❌ Formato inválido.\nUse: 50 - almoço - João")
 
-# Servidor fake para Render
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is running")
-
-def run_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), Handler)
-    server.serve_forever()
-
-threading.Thread(target=run_server, daemon=True).start()
-
+# --- Criar bot e handlers ---
 app = ApplicationBuilder().token(TOKEN).build()
-
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
 
+# --- Criar banco de dados se não existir ---
 criar_banco()
 
-print("Bot rodando...")
+# --- Configurar webhook no Telegram ---
+WEBHOOK_URL = f"{URL}/webhook"
 
-app.run_polling()
+# Registrar webhook (uma vez só)
+try:
+    r = requests.get(f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={WEBHOOK_URL}")
+    print("Webhook registrado:", r.text)
+except Exception as e:
+    print("Erro ao registrar webhook:", e)
+
+# --- Rodar webhook ---
+PORT = int(os.environ.get("PORT", 10000))
+print("Bot rodando com webhook...")
+app.run_webhook(listen="0.0.0.0", port=PORT, webhook_url=WEBHOOK_URL)
