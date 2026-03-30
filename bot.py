@@ -66,7 +66,7 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Salvar gasto
         partes = texto.split("-")
-        valor = float(partes[0].strip())
+        valor = float(partes[0].strip().replace(",", "."))
         local = partes[1].strip()
         pessoa = partes[2].strip()
         salvar_transacao(pessoa, valor, local)
