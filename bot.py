@@ -4,9 +4,11 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 import os
 import unicodedata
 from datetime import datetime
+import asyncio
 
 from database import salvar_transacao, relatorio_por_pessoa, criar_banco, relatorio_por_mes
 
+# --- Configurações ---
 TOKEN = os.getenv("TOKEN")
 app = Flask(__name__)
 
@@ -32,9 +34,9 @@ meses = {
     "dezembro": "12"
 }
 
-# --- Handlers ---
+# --- Handlers do bot ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Fala! Me manda um gasto que eu salvo 😄")
+    await update.message.reply_text("Oi, sou JAI 🤖! Me manda um gasto que eu salvo 😄")
 
 async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = normalizar_texto(update.message.text)
@@ -87,13 +89,12 @@ application = ApplicationBuilder().token(TOKEN).build()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
 
-# --- Endpoint webhook ---
+# --- Webhook do Flask ---
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
-    # Rodar o update dentro da aplicação PTB
-    import asyncio
-    asyncio.run(application.process_update(update))
+    loop = asyncio.get_event_loop()
+    loop.create_task(application.process_update(update))  # evita erro 500
     return "ok", 200
 
 # --- Endpoint teste vida ---
@@ -101,6 +102,7 @@ def webhook():
 def index():
     return "Bot Financeiro Online ✅", 200
 
+# --- Rodar servidor ---
 if __name__ == "__main__":
     PORT = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=PORT)
