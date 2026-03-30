@@ -1,9 +1,10 @@
 from telegram import Update
 from database import salvar_transacao, relatorio_por_pessoa
 import unicodedata
+import os
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-TOKEN = "8607769270:AAE01EPnNWbV3OXjpK4ITQOYDeW6YwYiLMY"
+TOKEN = os.getenv("TOKEN")
 
 def normalizar_texto(texto):
     texto = texto.lower()
