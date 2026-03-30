@@ -1,6 +1,6 @@
 from flask import Flask, request
-from telegram import Update, ReplyKeyboardMarkup, Bot
-from telegram.ext import Dispatcher, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import os
 import unicodedata
 from datetime import datetime
@@ -8,11 +8,7 @@ from datetime import datetime
 from database import salvar_transacao, relatorio_por_pessoa, criar_banco, relatorio_por_mes
 
 TOKEN = os.getenv("TOKEN")
-bot = Bot(TOKEN)
 app = Flask(__name__)
-
-# Dispatcher do PTB para usar dentro do Flask
-dispatcher = Dispatcher(bot, None, workers=0, use_context=True)
 
 # --- Funções utilitárias ---
 def normalizar_texto(texto):
@@ -83,21 +79,24 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(e)
         await update.message.reply_text("❌ Formato inválido.\nUse: 50 - almoço - João")
 
-# Registrar handlers no dispatcher
-dispatcher.add_handler(CommandHandler("start", start))
-dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
-
-# Criar banco de dados
+# --- Criar banco ---
 criar_banco()
 
-# --- Endpoint para webhook ---
-@app.route(f"/webhook", methods=["POST"])
+# --- Criar aplicação do Telegram ---
+application = ApplicationBuilder().token(TOKEN).build()
+application.add_handler(CommandHandler("start", start))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
+
+# --- Endpoint webhook ---
+@app.route("/webhook", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    dispatcher.process_update(update)
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    # Rodar o update dentro da aplicação PTB
+    import asyncio
+    asyncio.run(application.process_update(update))
     return "ok", 200
 
-# --- Endpoint para testar se o serviço está vivo ---
+# --- Endpoint teste vida ---
 @app.route("/", methods=["GET"])
 def index():
     return "Bot Financeiro Online ✅", 200
