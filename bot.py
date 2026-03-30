@@ -1,7 +1,8 @@
 from telegram import Update
-from database import salvar_transacao, relatorio_por_pessoa
-import unicodedata
 import os
+from database import salvar_transacao, relatorio_por_pessoa
+from database import criar_banco
+import unicodedata
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 TOKEN = os.getenv("TOKEN")
@@ -39,6 +40,8 @@ app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
+
+criar_banco()
 
 print("Bot rodando...")
 
