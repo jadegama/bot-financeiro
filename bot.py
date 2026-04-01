@@ -28,11 +28,23 @@ meses = {
 
 # --- Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Oi, sou JAI 🤖! Me manda um gasto que eu salvo 😄")
-
+    await update.message.reply_text(
+        "Oi! Eu sou o JAI 🤖\n\n"
+        "Me manda um gasto assim:\n"
+        "👉 50 - almoço - João\n\n"
+        "Ou digite 'relatório' para ver os gastos 📊"
+    )
 async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = normalizar_texto(update.message.text)
-
+    saudacoes = ["oi", "ola", "olá", "eai", "fala", "bom dia", "boa tarde", "boa noite"]
+    if any(s in texto for s in saudacoes):
+        await update.message.reply_text(
+            "Oi! Eu sou o JAI 🤖\n\n"
+            "Me manda um gasto assim:\n"
+            "👉 50 - almoço - João\n\n"
+            "Ou digite 'relatório' para ver os gastos 📊"
+        )
+        return
     try:
         # Menu de relatórios
         if "relatorio" in texto:
